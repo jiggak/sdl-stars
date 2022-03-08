@@ -4,16 +4,18 @@
 #include <SDL2/SDL.h>
 
 #define SCREEN_WIDTH 800
-#define SCREEN_HEIGHT 600
+#define SCREEN_HEIGHT 800
 
-#define STAR_COUNT 2000
-#define STAR_SPREAD 4000
+#define STAR_COUNT 1000
+#define STAR_SPREAD 5000
+
+#define SCALE 400
+#define DISTANCE 5000
 
 #ifndef M_PI
    #define M_PI 3.14159265358979323846
 #endif
 #define RAD (M_PI/180)
-#define PER 256
 
 typedef struct Star
 {
@@ -26,38 +28,58 @@ void random_stars(Star *stars, int count) {
       stars[i].x = (rand() % STAR_SPREAD) - (STAR_SPREAD / 2);
       stars[i].y = (rand() % STAR_SPREAD) - (STAR_SPREAD / 2);
       stars[i].z = (rand() % STAR_SPREAD) - (STAR_SPREAD / 2);
-      int tmp = rand() % 90;
-      float temp1 = (stars[i].x * cos (tmp * RAD)) - (stars[i].z * sin (tmp * RAD));
-      float temp2 = (stars[i].x * sin (tmp * RAD)) + (stars[i].z * cos (tmp * RAD));
-      float temp3 = (stars[i].y * cos (tmp * RAD)) - (temp2 * sin (tmp * RAD));
-      float temp4 = (stars[i].y * sin (tmp * RAD)) + (temp2 * cos (tmp * RAD));
-      stars[i].x = temp1;
-      stars[i].y = temp3;
-      stars[i].z = temp4;
    }
 }
 
-void rotate_stars(Star *stars, int count, float yaw, float pitch, float roll) {
-   // what do these do?
-   const float xoff = 0.0f, yoff = 0.0f, zoff = 3200.0f;
+// https://stackoverflow.com/questions/34050929/3d-point-rotation-algorithm
+void rotate_stars(Star *stars, int count, double pitch, double roll, double yaw) {
+   double cosa = cos(yaw);
+   double sina = sin(yaw);
+
+   double cosb = cos(pitch);
+   double sinb = sin(pitch);
+
+   double cosc = cos(roll);
+   double sinc = sin(roll);
+
+   double Axx = cosa*cosb;
+   double Axy = cosa*sinb*sinc - sina*cosc;
+   double Axz = cosa*sinb*cosc + sina*sinc;
+
+   double Ayx = sina*cosb;
+   double Ayy = sina*sinb*sinc + cosa*cosc;
+   double Ayz = sina*sinb*cosc - cosa*sinc;
+
+   double Azx = -sinb;
+   double Azy = cosb*sinc;
+   double Azz = cosb*cosc;
 
    for (int i = 0; i < count; i++) {
-      float temp1 = (stars[i].x * cos (yaw * RAD)) - (stars[i].z * sin (yaw * RAD));
-      float temp2 = (stars[i].x * sin (yaw * RAD)) + (stars[i].z * cos (yaw * RAD));
-      float temp3 = (stars[i].y * cos (pitch * RAD)) - (temp2 * sin (pitch * RAD));
-      float temp4 = (stars[i].y * sin (pitch * RAD)) + (temp2 * cos (pitch * RAD));
-      float temp5 = (temp1 * cos (roll * RAD)) - (temp3 * sin (roll * RAD));
-      float temp6 = (temp1 * sin (roll * RAD)) + (temp3 * cos (roll * RAD));
-      stars[i].dx = (PER * temp5 + xoff) / (PER + temp4 + zoff) + (SCREEN_WIDTH / 2);
-      stars[i].dy = (PER * temp6 + yoff) / (PER + temp4 + zoff) + (SCREEN_HEIGHT / 2);
+      float px = stars[i].x;
+      float py = stars[i].y;
+      float pz = stars[i].z;
 
-      stars[i].col = (temp4 + (STAR_SPREAD / 2)) * 0xff / STAR_SPREAD;
-      //stars[i].col = ((STAR_SPREAD - temp4) + (STAR_SPREAD / 2)) * 0xff / STAR_SPREAD;
+      stars[i].x = Axx*px + Axy*py + Axz*pz;
+      stars[i].y = Ayx*px + Ayy*py + Ayz*pz;
+      stars[i].z = Azx*px + Azy*py + Azz*pz;
+   }
+}
 
-      // see[n] = per + temp4 + zoff;
-      // if (see[n] > 0) {
-      //    stars[n].col = 24 - temp4 / 250;
-      // }
+// http://anthony.liekens.net/index.php/Computers/RenderingTutorial3DTo2D
+void project_stars(Star *stars, int count) {
+   static float zmax = 0, zmin = 0;
+
+   int xoff = SCREEN_WIDTH / 2;
+   int yoff = SCREEN_HEIGHT / 2;
+
+   for (int i = 0; i < count; i++) {
+      stars[i].dx = xoff + SCALE * stars[i].x / ( stars[i].z + DISTANCE );
+      stars[i].dy = yoff + SCALE * stars[i].y / ( stars[i].z + DISTANCE );
+
+      zmax = fmax(zmax, stars[i].z);
+      zmin = fmin(zmin, stars[i].z);
+
+      stars[i].col = 255 - ((stars[i].z + fabs(zmin)) * 255) / (zmax + fabs(zmin));
    }
 }
 
@@ -71,15 +93,16 @@ void render(SDL_Renderer *ctx) {
 
    while (running) {
       rotate_stars(stars, STAR_COUNT, yaw, pitch, roll);
+      project_stars(stars, STAR_COUNT);
 
       for (int i = 0; i < STAR_COUNT; i++) {
-         SDL_SetRenderDrawColor(ctx, stars[i].col, stars[i].col, 0, 0xff);
+         SDL_SetRenderDrawColor(ctx, 0, stars[i].col, 0, 0xff);
          SDL_RenderDrawPoint(ctx, stars[i].dx, stars[i].dy);
       }
 
-      yaw += 1;
-      //pitch += 1;
-      roll += 1;
+      yaw = RAD;
+      //pitch = RAD;
+      roll = RAD;
 
       SDL_RenderPresent(ctx);
 
