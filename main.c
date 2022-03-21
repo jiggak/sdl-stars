@@ -111,19 +111,32 @@ void render(SDL_Renderer *ctx) {
       SDL_Event event;
       while (SDL_PollEvent(&event)) {
          switch (event.type) {
+            case SDL_KEYDOWN:
+               switch (event.key.keysym.sym) {
+                  case SDLK_UP:
+                     pitch = -RAD;
+                     break;
+                  case SDLK_DOWN:
+                     pitch = RAD;
+                     break;
+                  case SDLK_LEFT:
+                     yaw = RAD;
+                     break;
+                  case SDLK_RIGHT:
+                     yaw = -RAD;
+                     break;
+               }
+
+               break;
             case SDL_KEYUP:
                switch (event.key.keysym.sym) {
                   case SDLK_UP:
-                     pitch = pitch == 0 ? -RAD : 0;
-                     break;
                   case SDLK_DOWN:
-                     pitch = pitch == 0 ? RAD : 0;
+                     pitch = 0;
                      break;
                   case SDLK_LEFT:
-                     yaw = yaw == 0 ? RAD : 0;
-                     break;
                   case SDLK_RIGHT:
-                     yaw = yaw == 0 ? -RAD : 0;
+                     yaw = 0;
                      break;
                   case SDLK_1:
                      distance += 100;
@@ -145,13 +158,24 @@ void render(SDL_Renderer *ctx) {
             case SDL_QUIT:
                running = SDL_FALSE;
                break;
+            case SDL_JOYAXISMOTION:
+               switch(event.jaxis.axis) {
+                  case 0: // X
+                     yaw = (event.jaxis.value * -(RAD*3)) / 32767;
+                     break;
+                  case 1: // Y
+                     pitch = (event.jaxis.value * (RAD*3)) / 32767;
+                     break;
+               }
+
+               break;
          }
       }
    }
 }
 
 int main(void) {
-   if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+   if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) < 0) {
       fprintf(stderr, "could not initialize sdl2: %s\n", SDL_GetError());
       return 1;
    }
@@ -174,6 +198,8 @@ int main(void) {
       fprintf(stderr, "could not create renderer: %s\n", SDL_GetError());
       return 1;
    }
+
+   SDL_JoystickOpen(0);
 
    render(ctx);
 
