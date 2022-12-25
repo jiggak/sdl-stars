@@ -6,8 +6,8 @@
 #define SCREEN_WIDTH 800
 #define SCREEN_HEIGHT 800
 
-#define STAR_COUNT 1000
-#define STAR_SPREAD 5000
+#define STAR_COUNT 2000
+#define STAR_SPREAD 6000
 
 #define SCALE 600
 #define DISTANCE 4000
@@ -23,11 +23,24 @@ typedef struct Star
    int dx, dy, col;
 } Star;
 
+// https://karthikkaranth.me/blog/generating-random-points-in-a-sphere/
+void random_point_sphere(Star *star) {
+   float d, x, y, z;
+   do {
+      x = ((float)rand() / RAND_MAX) * 2.0 - 1.0;
+      y = ((float)rand() / RAND_MAX) * 2.0 - 1.0;
+      z = ((float)rand() / RAND_MAX) * 2.0 - 1.0;
+      d = x*x + y*y + z*z;
+   } while (d > 1.0);
+
+   star->x = x * (STAR_SPREAD / 2);
+   star->y = y * (STAR_SPREAD / 2);
+   star->z = z * (STAR_SPREAD / 2);
+}
+
 void random_stars(Star *stars, int count) {
    for (int i = 0; i < count; i++) {
-      stars[i].x = (rand() % STAR_SPREAD) - (STAR_SPREAD / 2);
-      stars[i].y = (rand() % STAR_SPREAD) - (STAR_SPREAD / 2);
-      stars[i].z = (rand() % STAR_SPREAD) - (STAR_SPREAD / 2);
+      random_point_sphere(&stars[i]);
    }
 }
 
